@@ -76,7 +76,7 @@ laser_power = 350 * u.milliwatt
 
 # detection objective
 detection_NA = 1.1
-medium_refractive_index = 1.338             # water for the moment
+medium_refractive_index = 1.333             # water for the moment
 obj_theta_rad = np.arcsin(detection_NA/medium_refractive_index) * u.radian
 obj_theta_deg = np.rad2deg(obj_theta_rad)
 print("Detection theta:", round(obj_theta_rad, 4), round(obj_theta_deg, 4))
@@ -91,10 +91,12 @@ system_mag = det_obj_mag * (system_tube_lens / det_man_tube_lens)       # image 
 print("System mag:", round(system_mag, 2), "Pupil", round(back_pupil_dia, 2), "Focal length:", round(det_obj_focal_length, 2))
 
 # camera
-camera_manu = "Hamamatsu"
+camera_manufacture = "Hamamatsu"
 camera_model = "Orca Flash 4 v2"
 camera_pix_xy = np.array([6.5, 6.5]) * u.micron       # camera pixel spacing
-micron_pixel = camera_pix_xy / system_mag
+camera_micron_pixel = camera_pix_xy / system_mag
+
+#######################################################################
 
 # sample coord versus detection coord systems
 detect_to_sample_Z_ang_deg = 31.8      # CCW angle relative to sample X axis, rotated about the Y axis; from the point of view of Y+
@@ -111,6 +113,8 @@ else:
 
 scan_dist = (volume_image_number - 1) * scan_interval
 print("scan distance:", round(scan_dist, 2), "scan interval",round(scan_interval, 4))
+
+##########################################################################################
 
 # experiment parameters
 num_channels = 4
@@ -134,7 +138,7 @@ total_imaging_time = total_imaging_time_ms.to(u.second)
 
 # image info
 image_pix = np.array([800, 600])            # the ROI of the captured image
-image_fov = image_pix * micron_pixel
+image_fov = image_pix * camera_micron_pixel
 image_bits = 16                             # dynamic range
 bit_per_byte = 8
 mega_binary_factor = (2^20)                 # bytes per "mega"
@@ -144,15 +148,21 @@ volume_memory_size_giga = (volume_memory_size_mega / 1024) * u.gigabytes        
 memory_per_second = volume_memory_size_giga / total_imaging_time            # in megabytes per second
 #print("volume_memory_size_giga:", round(volume_memory_size_giga, 2), "Memory_per_second:", round(memory_per_second, 2))
 
+# light sheet parameters
+sheet_length = 30 * u.micron        # calculate based on system optics or bessels parameters
+sheet_width = 50 * u.micron         # along the Y axis
+sheet_thick = 0.4* u.micron         # calculate this properly later
+
 
 #################    CHANGE THIS     ##########################
 
 # sample sphere represented as a 2D circle (the small circle as defined by the XZ cutting plane)
 # Y location doesn't change the cutting plane, so it is carried through the processing and only used when
 # drawing the sphere section in the final multi tiff tiff
+
+
 circle_rad = 2.50 * u.micron                # outer radius of the sphere in microns
 circle_center = np.array([0, 0, 0]) * u.micron  # X, Y, Z coords of sphere location in an array
-
 shell_thickness = 40 * u.nanometer          # sphere fluorophore is "membrance bound" or "intravesicular"
         # will need to treat as two great circles cut by the plane
 if shell_thickness >= circle_rad:
@@ -163,17 +173,13 @@ else:  # shell_thickness < circle_rad
 
 sphere_velocity = (10 * u.micron) / (1 * u.second)        # microns per second
 sphere_motion_vector = np.array([1, 0, 0])              # 1, 0, 1 -> shere is moving along the +X and +Z axes i.e. 45 deg in the XZ plane
+
 shift = circle_center
-print("shift:", shift)                     # set the shit to center distances
+print("shift:", shift)                     # set the shift to center distances
 circle_offset = circle_center - shift       # shift the great circle to XYZ 0,0,0
 
-# light sheet parameters
-sheet_length = 30 * u.micron        # calculate based on system optics or bessels parameters
-sheet_width = 50 * u.micron         # along the Y axis
-#volume_z_height = sheet_length * np.abs(np.sin(stage_ang_rad))     
 
-detect_to_stage_transform = np.sin(detect_to_sample_Z_ang_rad)
-
+#detect_to_stage_transform = np.sin(detect_to_sample_Z_ang_rad)
 
 # current stage location
 scan_loc = np.array([0, 0, 0.250]) * u.micron  # current  coordinate of stage (at X = 0 and Y = 0)
@@ -192,7 +198,6 @@ if line[2] < 0.0:
     sgn_z = -1.0
 else:
     sgn_z = 1.0
-
 
 #line_dr = np.hypot(*line) # argument unpacking - pulls the two elements out of the array and pythags them to get the hypotnuse
 line_dr = np.hypot(line[0], line[2])
